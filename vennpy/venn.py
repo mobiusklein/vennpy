@@ -1,15 +1,20 @@
-from cProfile import label
-from typing import Hashable, List, Set, Optional
+from typing import Set, List, Optional, Union, Tuple
 from string import ascii_uppercase
-from itertools import cycle, product
+from itertools import cycle
 
-from .circle import Point, Circle, Arc
-from .layout import GreedyLayout, Group, Overlap, compute_text_centers
+from matplotlib import pyplot as plt, colors as mcolor
+from matplotlib.axes import Axes
+from matplotlib.patches import Circle as MCircle
 
-from matplotlib import pyplot as plt
-from matplotlib import colors as mcolor
+from .set_logic import BaseSet, VSet, combinate_sets, SetCombination, T
+from .layout import GreedyLayout, RefinedLayout, Overlap
+from .geometry import Point, Circle
 
-COLORS = list(map(mcolor.hex2color, [
+
+ColorLike = Union[str, Tuple[float, float, float]]
+
+
+COLORS: List[ColorLike] = list(map(mcolor.hex2color, [
     '#1f77b4',
     '#ff7f0e',
     '#2ca02c',
@@ -25,39 +30,59 @@ COLORS = list(map(mcolor.hex2color, [
 ASCII_UPPERCASE = list(ascii_uppercase)
 
 
-def venn(subsets: List[Set[Hashable]], set_labels: Optional[List[str]]=None, colors: Optional[List[str]]=None,
-         ax: Optional[plt.Axes]=None, scale: float=1.0):
-    standalone = False
-    if ax is None:
-        standalone = True
-        _fig, ax = plt.subplots(1, 1)
-    if set_labels is None:
-        set_labels = ASCII_UPPERCASE[:len(subsets)]
+def venn_layout(sets: List[Set[T]], names: Optional[List[str]]=None):
+
+    if names is None:
+        names = ASCII_UPPERCASE[:len(sets)]
+        if len(names) < len(sets):
+            raise ValueError("Too many sets, please provide explicit names")
+    vsets = []
+    for s, name in zip(sets, names):
+        vsets.append(VSet(name, s))
+
+    combos = combinate_sets(vsets)
+    initial = GreedyLayout(combos)
+    refined = RefinedLayout(initial.sets, initial.circles)
+    return refined
+
+
+
+def venn(sets: List[Set[T]], names: Optional[List[str]]=None, colors: Optional[List[ColorLike]]=None,
+         ax: Optional[Axes]=None, alpha: float=0.5, fill=True, include_label: bool=True,
+         include_size: bool=True):
 
     if colors is None:
         gen = cycle(COLORS)
-        colors = [next(gen) for i in range(len(subsets))]
+        colors = [next(gen) for _ in sets]
 
-    groups = []
-    color_map = {}
-    for group, c in [(Group(s, lab), c) for s, lab, c in zip(subsets, set_labels, colors)]:
-        groups.append(group)
-        color_map[group.label] = c
+    refined = venn_layout(sets, names)
 
-    layout = GreedyLayout(groups, scale)
+    if ax is None:
+        _fig, ax = plt.subplots(1, 1)
 
-    text_centers = compute_text_centers(layout)
-    for k, v in layout.circles.items():
-        c = plt.Circle((v.x, v.y), v.radius, alpha=0.5, label=k, facecolor=color_map[k])
-        ax.add_patch(c)
+    patches = []
+    for i, (_k, circle) in enumerate(refined.circles.items()):
+        patch = MCircle((circle.x, circle.y), radius=circle.radius,
+                        facecolor=colors[i] if fill else 'none',
+                        edgecolor=colors[i], lw=2,
+                        label=circle.label,
+                        alpha=alpha)
+        ax.add_patch(patch)
+        patches.append(patch)
 
-    for k, v in text_centers.items():
-        k = '|'.join(k)
-        ax.text(v.x, v.y, k, ha='center')
+    for s in refined.sets:
+        pt = refined.centers[s.name]
 
+        label = None
+        if include_label and include_size:
+            label = f"{s.name} {s.cardinality}"
+        elif include_label:
+            label = s.name
+        elif include_size:
+            label = str(s.cardinality)
 
-    bbox = layout.bounding_box()
-    ax.set_xlim(*bbox['x'])
-    ax.set_ylim(*bbox['y'])
-    ax.axis("off")
-    return ax
+        if label:
+            ax.text(pt.x, pt.y, label, ha='center')
+    ax.autoscale()
+    return ax, patches, refined
+

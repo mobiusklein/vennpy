@@ -1,17 +1,16 @@
-from typing import List, Tuple, Any
+from dataclasses import dataclass, field
+from typing import Any, List, Optional
 
 import numpy as np
 
-from dataclasses import dataclass, field
-
 SMALL = 1e-10
-
 
 @dataclass
 class Point:
     x: float
     y: float
     label: Any = field(default=None)
+    weight: float = field(default=0.0)
 
     def distance(self, other: 'Point') -> float:
         return np.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
@@ -26,6 +25,21 @@ class Point:
         center.y /= len(points)
         return center
 
+    def margin(self, interior: List['Circle'], exterior: List['Circle']):
+        margin = interior[0].radius - self.distance(interior[0])
+
+        for inter in interior[1:]:
+            m = inter.radius - self.distance(inter)
+
+            if m <= margin:
+                margin = m
+
+        for ext in exterior:
+            m = ext.distance(self) - ext.radius
+            if m <= margin:
+                margin = m
+        return margin
+
 
 @dataclass
 class Circle(Point):
@@ -36,7 +50,7 @@ class Circle(Point):
         d = self.distance(point)
         return d <= self.radius + SMALL
 
-    def overlap(self, other: 'Circle', d: float=None) -> float:
+    def overlap(self, other: 'Circle', d: float = None) -> float:
         if d is None:
             d = self.distance(other)
 
@@ -52,7 +66,7 @@ class Circle(Point):
         r22 = other.radius ** 2
         d2 = d ** 2
 
-        w1: float = self.radius - (d2 - r22 + r12 ) / (2 * d)
+        w1: float = self.radius - (d2 - r22 + r12) / (2 * d)
         w2: float = other.radius - (d2 - r12 + r22) / (2 * d)
 
         return circlular_segment_area(self.radius, w1) + circlular_segment_area(other.radius, w2)
@@ -86,7 +100,7 @@ class Circle(Point):
         return result
 
     @classmethod
-    def group_intersection_area(cls, circles: List['Circle'], stats: dict) -> float:
+    def group_intersection_area(cls, circles: List['Circle'], stats: Optional[dict]=None) -> float:
         intersection_points = cls.group_intersection_points(circles)
 
         inner_points: List[Point] = list(
@@ -150,7 +164,8 @@ class Circle(Point):
 
                 if arc is not None:
                     arcs.append(arc)
-                    arc_area += circlular_segment_area(arc.circle.radius, arc.width)
+                    arc_area += circlular_segment_area(
+                        arc.circle.radius, arc.width)
                     p2 = p1
 
         else:
@@ -186,6 +201,7 @@ class Circle(Point):
         return arc_area + polygon_area
 
 
+
 def circlular_segment_area(r: float, width: float) -> float:
     return r * r * np.arccos(1 - width / r) - (r - width) * np.sqrt(width * (2 * r - width))
 
@@ -200,7 +216,7 @@ def circle_overlap(r1: float, r2: float, d: float) -> float:
     r22 = r2 ** 2
     d2 = d ** 2
 
-    w1: float = r1 - (d2 - r22 + r12 ) / (2 * d)
+    w1: float = r1 - (d2 - r22 + r12) / (2 * d)
     w2: float = r2 - (d2 - r12 + r22) / (2 * d)
 
     return circlular_segment_area(r1, w1) + circlular_segment_area(r2, w2)

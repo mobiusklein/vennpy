@@ -70,19 +70,30 @@ def venn(sets: List[Set[T]], names: Optional[List[str]]=None, colors: Optional[L
         ax.add_patch(patch)
         patches.append(patch)
 
-    for s in refined.sets:
+    placed: List[Point] = []
+    for s in sorted(refined.sets, key=lambda x: refined.exclusive_sizes[x.name], reverse=True):
         pt = refined.centers[s.name]
+
+        skip = False
+        for p in placed:
+            if pt.distance(p) < 0.1 and refined.exclusive_sizes[s.name] == 0:
+                skip = True
+                break
+        if skip:
+            continue
+
 
         label = None
         if include_label and include_size:
-            label = f"{s.name} {s.cardinality}"
+            label = f"{s.name} {refined.exclusive_sizes[s.name]}"
         elif include_label:
             label = s.name
         elif include_size:
-            label = str(s.cardinality)
+            label = str(refined.exclusive_sizes[s.name])
 
         if label:
             ax.text(pt.x, pt.y, label, ha='center')
+        placed.append(pt)
     ax.autoscale()
     return ax, patches, refined
 

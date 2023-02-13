@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 from .geometry import Point, Circle, Arc, SMALL, circle_overlap
-from .set_logic import BaseSet, VSet, SetCombination
+from .set_logic import BaseSet, VSet, SetCombination, compute_exclusive_sizes
 
 
 @dataclass(frozen=True)
@@ -161,12 +161,14 @@ class RefinedLayout:
     multiple_overlaps: List[Overlap] = field(default_factory=list, init=False)
     set_ids: List[str] = field(default_factory=list, init=False)
     centers: Dict[str, Any] = field(default_factory=dict, init=False)
+    exclusive_sizes: Dict[str, int] = field(default_factory=dict, init=False)
 
     def __post_init__(self):
         self.overlaps = [Overlap.from_setlike(v) for v in self.sets]
         self.multiple_overlaps = list(filter(lambda x: x.degree > 1, self.overlaps))
         self.refine_set_positions()
         self.refine_text_centers()
+        self.exclusive_sizes = compute_exclusive_sizes(self.sets)
 
     def _optimization_objective(self, values: List[float]):
         current = {}
@@ -298,7 +300,8 @@ def compute_text_center(interior: List[Circle], exterior: List[Circle]):
             elif exterior:
                 result,  disjoint = compute_text_center(interior, [])
             else:
-                raise ValueError("Not implemented average over all")
+                warnings.warn("Not implemented average over all")
+                result = Point(np.nan, np.nan)
     return result, disjoint
 
 
@@ -325,6 +328,8 @@ def compute_text_centers(circles: Dict[str, Circle], areas: List[Overlap]):
                 exterior.append(circle)
 
         center, disjoint = compute_text_center(interior, exterior)
+        if center is None:
+            center = Point(np.nan, np.nan)
         result[area.sets] = center
         if disjoint and area.size > 0:
             warnings.warn(f"Area {area} not on screen")

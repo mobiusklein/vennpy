@@ -54,7 +54,7 @@ def draw_circles(ax: Axes, refined: RefinedLayout, colors: List[ColorLike],
     for i, (_k, circle) in enumerate(refined.circles.items()):
         patch = MCircle((circle.x, circle.y), radius=circle.radius,
                         facecolor=colors[i] if fill else 'none',
-                        edgecolor=colors[i], lineweight=lineweight,
+                        edgecolor=colors[i], lw=lineweight,
                         label=circle.label,
                         alpha=alpha, **kwargs)
         ax.add_patch(patch)

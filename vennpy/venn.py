@@ -42,13 +42,62 @@ def venn_layout(sets: List[Set[T]], names: Optional[List[str]]=None):
 
     combos = combinate_sets(vsets)
     initial = GreedyLayout(combos)
-    refined = RefinedLayout(initial.sets, initial.circles)
+    refined = RefinedLayout.from_greedy(initial)
     return refined
 
 
 
+def draw_circles(ax: Axes, refined: RefinedLayout, colors: List[ColorLike],
+                 lineweight: int=2, alpha: float=0.5, fill: bool=True, **kwargs):
+
+    patches = []
+    for i, (_k, circle) in enumerate(refined.circles.items()):
+        patch = MCircle((circle.x, circle.y), radius=circle.radius,
+                        facecolor=colors[i] if fill else 'none',
+                        edgecolor=colors[i], lineweight=lineweight,
+                        label=circle.label,
+                        alpha=alpha, **kwargs)
+        ax.add_patch(patch)
+        patches.append(patch)
+    return patches
+
+
+def draw_labels(ax: Axes, refined: RefinedLayout, include_label: bool = True,
+                include_size: bool = True):
+    placed: List[Tuple[BaseSet, Point]] = []
+    artists = []
+    for s in sorted(refined.sets, key=lambda x: refined.exclusive_sizes[x.name], reverse=True):
+        pt = refined.centers[s.name]
+        size_of_set = refined.exclusive_sizes[s.name]
+        skip = False
+        if size_of_set == 0:
+            for (prev_s, prev_pt) in placed:
+                if pt.distance(prev_pt) < 0.1:
+                    skip = True
+                    break
+                if len(prev_s.component_overlaps(s)) >= s.degree:
+                    skip = True
+                    break
+
+        if skip:
+            continue
+
+        label = None
+        if include_label and include_size:
+            label = f"{s.name} {size_of_set}"
+        elif include_label:
+            label = s.name
+        elif include_size:
+            label = str(size_of_set)
+
+        if label:
+            artists.append(ax.text(pt.x, pt.y, label, ha='center'))
+        placed.append((s, pt))
+    return artists
+
+
 def venn(sets: List[Set[T]], names: Optional[List[str]]=None, colors: Optional[List[ColorLike]]=None,
-         ax: Optional[Axes]=None, alpha: float=0.5, fill=True, include_label: bool=True,
+         ax: Optional[Axes]=None, alpha: float=0.5, fill=True, lineweight: int=2, include_label: bool=True,
          include_size: bool=True):
 
     if colors is None:
@@ -60,40 +109,9 @@ def venn(sets: List[Set[T]], names: Optional[List[str]]=None, colors: Optional[L
     if ax is None:
         _fig, ax = plt.subplots(1, 1)
 
-    patches = []
-    for i, (_k, circle) in enumerate(refined.circles.items()):
-        patch = MCircle((circle.x, circle.y), radius=circle.radius,
-                        facecolor=colors[i] if fill else 'none',
-                        edgecolor=colors[i], lw=2,
-                        label=circle.label,
-                        alpha=alpha)
-        ax.add_patch(patch)
-        patches.append(patch)
+    patches = draw_circles(ax, refined, colors, lineweight=lineweight, alpha=alpha, fill=fill)
 
-    placed: List[Point] = []
-    for s in sorted(refined.sets, key=lambda x: refined.exclusive_sizes[x.name], reverse=True):
-        pt = refined.centers[s.name]
-
-        skip = False
-        for p in placed:
-            if pt.distance(p) < 0.1 and refined.exclusive_sizes[s.name] == 0:
-                skip = True
-                break
-        if skip:
-            continue
-
-
-        label = None
-        if include_label and include_size:
-            label = f"{s.name} {refined.exclusive_sizes[s.name]}"
-        elif include_label:
-            label = s.name
-        elif include_size:
-            label = str(refined.exclusive_sizes[s.name])
-
-        if label:
-            ax.text(pt.x, pt.y, label, ha='center')
-        placed.append(pt)
+    text_labels = draw_labels(ax, refined, include_label, include_size)
     ax.autoscale()
-    return ax, patches, refined
+    return ax, [patches, text_labels], refined
 

@@ -63,7 +63,7 @@ class GreedyLayout:
 
     def initialize_circles(self):
         for s in self.sets:
-            if isinstance(s, VSet):
+            if s.degree == 1:
                 self.circles[s.key] = Circle(
                     1e10,
                     1e10,
@@ -162,6 +162,10 @@ class RefinedLayout:
     set_ids: List[str] = field(default_factory=list, init=False)
     centers: Dict[str, Any] = field(default_factory=dict, init=False)
     exclusive_sizes: Dict[str, int] = field(default_factory=dict, init=False)
+
+    @classmethod
+    def from_greedy(cls, greedy_layout: GreedyLayout):
+        return cls(greedy_layout.sets, greedy_layout.circles)
 
     def __post_init__(self):
         self.overlaps = [Overlap.from_setlike(v) for v in self.sets]

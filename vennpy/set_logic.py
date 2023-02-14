@@ -84,6 +84,12 @@ class VSet(BaseSet[T]):
     def is_of(self, setlike: BaseSet[T]) -> bool:
         return self.name == setlike.name
 
+    def component_overlaps(self, other: BaseSet[T]) -> Set[str]:
+        if isinstance(other, SetCombination):
+            return {self.name} & {s.name for s in other.sets}
+        else:
+            return {self.name} if self.name == other.name else set()
+
 @dataclass(repr=False)
 class SetCombination(BaseSet[T]):
     sets: List[SetLike[T]]
@@ -95,8 +101,12 @@ class SetCombination(BaseSet[T]):
                 return True
         return False
 
-    def component_overlaps(self, other: 'SetCombination') -> Set[str]:
-        return {s.name for s in self.sets} & {s.name for s in other.sets}
+    def component_overlaps(self, other: BaseSet[T]) -> Set[str]:
+        if isinstance(other, SetCombination):
+            return {s.name for s in self.sets} & {s.name for s in other.sets}
+        else:
+            return {other.name} if any(other.name == s.name for s in self.sets) else set()
+
 
     @classmethod
     def make_name(cls, sets: List[BaseSet]) -> str:

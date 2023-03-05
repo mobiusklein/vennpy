@@ -1,6 +1,8 @@
-from typing import Set, List, Optional, Union, Tuple
+from typing import Any, Dict, Set, List, Optional, Union, Tuple
 from string import ascii_uppercase
 from itertools import cycle
+
+from dataclasses import dataclass, field
 
 from matplotlib import pyplot as plt, colors as mcolor
 from matplotlib.axes import Axes
@@ -30,7 +32,27 @@ COLORS: List[ColorLike] = list(map(mcolor.hex2color, [
 ASCII_UPPERCASE = list(ascii_uppercase)
 
 
-def venn_layout(sets: List[Set[T]], names: Optional[List[str]]=None):
+class VennDiagram:
+    sets: List[Set[T]]
+    names: List[str]
+
+    layout: RefinedLayout
+
+    ax: Axes
+
+    colors: List[ColorLike]
+    linewight: float = 2
+    alpha: float = 0.5
+    fill: bool = True
+    circle_kwargs: Dict[str, Any]
+
+    include_label: bool = True
+    include_size: bool = True
+    label_size: float = 12
+
+
+
+def venn_layout(sets: List[Set[T]], names: Optional[List[str]]=None, normalize: bool=False):
 
     if names is None:
         names = ASCII_UPPERCASE[:len(sets)]
@@ -42,9 +64,8 @@ def venn_layout(sets: List[Set[T]], names: Optional[List[str]]=None):
 
     combos = combinate_sets(vsets)
     initial = GreedyLayout(combos)
-    refined = RefinedLayout.from_greedy(initial)
+    refined = RefinedLayout.from_greedy(initial, normalize=normalize)
     return refined
-
 
 
 def draw_circles(ax: Axes, refined: RefinedLayout, colors: List[ColorLike],
@@ -98,13 +119,13 @@ def draw_labels(ax: Axes, refined: RefinedLayout, include_label: bool = True,
 
 def venn(sets: List[Set[T]], names: Optional[List[str]]=None, colors: Optional[List[ColorLike]]=None,
          ax: Optional[Axes]=None, alpha: float=0.5, fill=True, lineweight: int=2, include_label: bool=True,
-         include_size: bool=True):
+         include_size: bool=True, __normalize: bool=False):
 
     if colors is None:
         gen = cycle(COLORS)
         colors = [next(gen) for _ in sets]
 
-    refined = venn_layout(sets, names)
+    refined = venn_layout(sets, names, __normalize)
 
     if ax is None:
         _fig, ax = plt.subplots(1, 1)
@@ -113,5 +134,6 @@ def venn(sets: List[Set[T]], names: Optional[List[str]]=None, colors: Optional[L
 
     text_labels = draw_labels(ax, refined, include_label, include_size)
     ax.autoscale()
+    ax.axis('off')
     return ax, [patches, text_labels], refined
 

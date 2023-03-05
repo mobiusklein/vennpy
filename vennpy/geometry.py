@@ -12,6 +12,11 @@ class Point:
     label: Any = field(default=None)
     weight: float = field(default=0.0)
 
+    def shift_by(self, x: float=0, y: float=0):
+        self.x += x
+        self.y += y
+        return self
+
     def distance(self, other: 'Point') -> float:
         return np.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
@@ -26,10 +31,10 @@ class Point:
         return center
 
     def margin(self, interior: List['Circle'], exterior: List['Circle']):
-        margin = interior[0].radius - self.distance(interior[0])
+        margin = interior[0].radius - interior[0].distance(self)
 
         for inter in interior[1:]:
-            m = inter.radius - self.distance(inter)
+            m = inter.radius - inter.distance(self)
 
             if m <= margin:
                 margin = m
@@ -39,6 +44,67 @@ class Point:
             if m <= margin:
                 margin = m
         return margin
+
+    def copy(self):
+        return self.__class__(
+            self.x,
+            self.y,
+            self.label,
+            self.weight
+        )
+
+
+@dataclass
+class Interval:
+    start: float
+    end: float
+
+    @property
+    def size(self) -> float:
+        return abs(self.end - self.start)
+
+    @property
+    def center(self) -> float:
+        return (self.end + self.start) / 2
+
+    @property
+    def min(self):
+        return self.start
+
+    @property
+    def max(self):
+        return self.end
+
+
+@dataclass
+class BoundingBox:
+    x: Interval
+    y: Interval
+
+    def centeroid(self) -> Point:
+        return Point(self.x.center, self.y.center)
+
+    @property
+    def area(self) -> float:
+        return self.x.size * self.y.size
+
+    @classmethod
+    def from_points(cls, points: List['Point']):
+        min_y = min_x = float('inf')
+        max_y = max_x = -float('inf')
+
+        for p in points:
+            if p.x < min_x:
+                min_x = p.x
+            if p.x > max_x:
+                max_x = p.x
+            if p.y < min_y:
+                min_y = p.y
+            if p.y > max_y:
+                max_y = p.y
+        x = Interval(min_x, max_x)
+        y = Interval(min_y, max_y)
+        return cls(x, y)
 
 
 @dataclass
@@ -200,6 +266,15 @@ class Circle(Point):
 
         return arc_area + polygon_area
 
+    def copy(self):
+        return self.__class__(
+            self.x,
+            self.y,
+            self.label,
+            self.weight,
+            self.radius,
+            self.size
+        )
 
 
 def circlular_segment_area(r: float, width: float) -> float:

@@ -90,6 +90,7 @@ class VSet(BaseSet[T]):
         else:
             return {self.name} if self.name == other.name else set()
 
+
 @dataclass(repr=False)
 class SetCombination(BaseSet[T]):
     sets: List[SetLike[T]]
@@ -184,3 +185,54 @@ def compute_exclusive_sizes(sets: List[BaseSet[T]]) -> Dict[str, int]:
             spanned_by = group.difference(*prev)
             exclusive_sizes[group.name] = spanned_by.cardinality
     return exclusive_sizes
+
+
+@dataclass(repr=False)
+class CSet(BaseSet[int]):
+    count: int
+    group_type: ClassVar[str] = 'count'
+
+    def __and__(self, other: SetLike):
+        raise NotImplementedError()
+
+    def __or__(self, other: SetLike):
+        raise NotImplementedError()
+
+    def __sub__(self, other: SetLike):
+        raise NotImplementedError()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.name!r}, {self.cardinality})"
+
+    @property
+    def cardinality(self) -> int:
+        return self.count
+
+    def __len__(self):
+        return self.cardinality
+
+
+@dataclass(repr=False)
+class CSetIntersection(BaseSet[int]):
+    count: int
+    sets: Set[str]
+    group_type: ClassVar[str] = 'count intersection'
+
+    def __and__(self, other: SetLike):
+        raise NotImplementedError()
+
+    def __or__(self, other: SetLike):
+        raise NotImplementedError()
+
+    def __sub__(self, other: SetLike):
+        raise NotImplementedError()
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.name!r}, {self.cardinality})"
+
+    @property
+    def cardinality(self) -> int:
+        return self.count
+
+    def __len__(self):
+        return self.cardinality

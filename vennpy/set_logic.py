@@ -66,7 +66,7 @@ class BaseSet(SetLike[T]):
         return self.difference(other)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.name!r}, {self.elements})"
+        return f"{self.__class__.__name__}({self.name!r}, {self.cardinality})"
 
     degree: ClassVar[int] = 1
 

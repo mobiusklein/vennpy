@@ -84,9 +84,10 @@ def draw_circles(ax: Axes, refined: RefinedLayout, colors: List[ColorLike],
 
 
 def draw_labels(ax: Axes, refined: RefinedLayout, include_label: bool = True,
-                include_size: bool = True):
+                include_size: bool = True, **text_kwargs):
     placed: List[Tuple[BaseSet, Point]] = []
     artists = []
+    text_kwargs.setdefault('ha', 'center')
     for s in sorted(refined.sets, key=lambda x: refined.exclusive_sizes[x.name], reverse=True):
         pt = refined.centers[s.name]
         size_of_set = refined.exclusive_sizes[s.name]
@@ -112,15 +113,18 @@ def draw_labels(ax: Axes, refined: RefinedLayout, include_label: bool = True,
             label = str(size_of_set)
 
         if label:
-            artists.append(ax.text(pt.x, pt.y, label, ha='center'))
+            artists.append(ax.text(pt.x, pt.y, label, **text_kwargs))
         placed.append((s, pt))
     return artists
 
 
 def venn(sets: List[Set[T]], names: Optional[List[str]]=None, colors: Optional[List[ColorLike]]=None,
          ax: Optional[Axes]=None, alpha: float=0.5, fill=True, lineweight: int=2, include_label: bool=True,
-         include_size: bool=True, __normalize: bool=False):
-
+         include_size: bool=True, __normalize: bool=False, text_kwargs=None, circle_kwargs=None):
+    if text_kwargs is None:
+        text_kwargs = {}
+    if circle_kwargs is None:
+        circle_kwargs = {}
     if colors is None:
         gen = cycle(COLORS)
         colors = [next(gen) for _ in sets]
@@ -130,9 +134,11 @@ def venn(sets: List[Set[T]], names: Optional[List[str]]=None, colors: Optional[L
     if ax is None:
         _fig, ax = plt.subplots(1, 1)
 
-    patches = draw_circles(ax, refined, colors, lineweight=lineweight, alpha=alpha, fill=fill)
+    patches = draw_circles(
+        ax, refined, colors, lineweight=lineweight, alpha=alpha, fill=fill,
+        **circle_kwargs)
 
-    text_labels = draw_labels(ax, refined, include_label, include_size)
+    text_labels = draw_labels(ax, refined, include_label, include_size, **text_kwargs)
     ax.autoscale()
     ax.axis('off')
     return ax, [patches, text_labels], refined
